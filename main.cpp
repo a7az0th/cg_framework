@@ -20,6 +20,25 @@
 #include "camera.h"
 #include "sphere.h"
 
+#include "threadman.h"
+#include "timer.h"
+
+#include <vector>
+
+// Simple structure used to represent a rectangular section of an image. A 'bucket'
+struct Rect {
+
+	int x0, y0, x1, y1; //< The 2 diagonal points of the rectangle
+
+	Rect() {}
+	Rect(int x0, int y0, int x1, int y1) : x0(x0), x1(x1), y0(y0), y1(y1){}
+	// Clips the rectangle against image size
+	void clip(int maxX, int maxY) {
+		x1 = min(x1, maxX);
+		y1 = min(y1, maxY);
+	}
+};
+
 struct Canvas {
 	Canvas(int width, int height): width(width), height(height) {
 		buffer = new Color[width*height];
@@ -35,10 +54,23 @@ struct Canvas {
 	Color *buffer;
 };
 
+struct Scene {
+	Scene() {
+		numThreads = a7az0th::getProcessorCount();
+	}
 
-Camera cam;
-Sphere sphere;
-Canvas* gCanvas = nullptr;
+	a7az0th::ThreadManager threadman;
+	int numThreads;
+
+	Camera cam;
+	Sphere sphere;
+	Canvas *c;
+	std::vector<Rect> buckets;
+};
+
+Scene scene;
+
+
 
 struct Light {
 	Light() {
@@ -71,7 +103,7 @@ Color lambert(const Color &c, IntersectionInfo& info) {
 	const Vector from = info.intersectionPoint + info.normal * 1e-6f;
 	const Vector to   = pointOnLight;
 
-	Color lambertComponent  = Color(0.0f, 0.0f, 0.0f);
+	Color lambertComponent = Color(0.0f, 0.0f, 0.0f);
 	const float cosTheta  = dot(lightVec, info.normal);
 	const Color lightContribution = c * lightColor * max(0, cosTheta) / (from - to).lengthSqr();
 	lambertComponent += lightContribution / numSamples;
@@ -81,7 +113,7 @@ Color lambert(const Color &c, IntersectionInfo& info) {
 	const bool phong = 1;
 	if (phong) {
 		const Vector reflect = getReflectionDir(lightVec, info.normal);
-		const Vector viewDir = (info.intersectionPoint - cam.getPos()).normalize();
+		const Vector viewDir = (info.intersectionPoint - scene.cam.getPos()).normalize();
 		const float factor = max(0.f, dot(reflect, viewDir));
 
 		specularComponent = lightColor * pow(factor, 30);
@@ -94,34 +126,67 @@ Color lambert(const Color &c, IntersectionInfo& info) {
 }
 
 
+void initBuckets(Canvas& c, std::vector<Rect>& buckets, const int BUCKET_SIZE = 32) {
 
-void raytrace(Canvas& c) {
-	for (int y = 0; y < c.height; y++) {
-		for (int x = 0; x < c.width; x++) {
-			Color& col = c.buffer[y*c.width + x];
-			Ray r = cam.getCameraRay(x, y);
-			IntersectionInfo info;
-			sphere.intersect(r, info);
+	buckets.clear();
 
-			if (info.isValid()) {
-				col = lambert(RED, info);
-			} else {
-				col = WHITE*0.3f;
+	const int W = c.width;
+	const int H = c.height;
+	const int BW = (W + BUCKET_SIZE-1) / BUCKET_SIZE;
+	const int BH = (H + BUCKET_SIZE-1) / BUCKET_SIZE;
+	for (int y = 0; y < BH; y++) {
+		if (y % 2 == 0)
+			for (int x = 0; x < BW; x++)
+				buckets.push_back(Rect(x * BUCKET_SIZE, y * BUCKET_SIZE, (x + 1) * BUCKET_SIZE, (y + 1) * BUCKET_SIZE));
+		else
+			for (int x = BW - 1; x >= 0; x--)
+				buckets.push_back(Rect(x * BUCKET_SIZE, y * BUCKET_SIZE, (x + 1) * BUCKET_SIZE, (y + 1) * BUCKET_SIZE));
+	}
+	for (int i = 0; i < (int) buckets.size(); i++) {
+		buckets[i].clip(W, H);
+	}
+}
+
+struct MultiThreadedRender : a7az0th::MultiThreadedFor {
+	MultiThreadedRender(std::vector<Rect>& buckets, Canvas& c): buckets(buckets), c(c) {}
+	virtual void body(int index, int threadIdx, int numThreads) override {
+		const Rect& r = buckets[index];
+		for (int y=r.y0; y < r.y1; y++) {
+			for (int x = r.x0; x < r.x1; x++) {
+				Color& col = c.buffer[y*c.width + x];
+				const Ray& r = scene.cam.getCameraRay(x, y);
+				IntersectionInfo info;
+				scene.sphere.intersect(r, info);
+
+				if (info.isValid()) {
+					col = lambert(RED, info);
+				} else {
+					col = WHITE*0.3f;
+				}
 			}
 		}
 	}
+private:
+	std::vector<Rect>& buckets;
+	Canvas& c;
 };
 
-float angle = 0.f;
+
+void raytrace(Scene& scene) {
+	MultiThreadedRender renderer(scene.buckets, *scene.c);
+	renderer.run(scene.threadman, scene.buckets.size(), scene.numThreads);
+};
 
 void display() {
-	Canvas &c = *gCanvas;
 
-	raytrace(c);
-	glDrawPixels(c.width, c.height, GL_RGB, GL_FLOAT ,(float*)c.buffer);
+	a7az0th::Timer t;
+	raytrace(scene);
+	t.stop();
+	printf("Frame rendered in %f seconds\r", t.elapsedSeconds());
+	glDrawPixels(scene.c->width, scene.c->height, GL_RGB, GL_FLOAT ,(float*)scene.c->buffer);
 	glutSwapBuffers();
 
-
+	static float angle = 0.f;
 	const float radius = 5;
 	const float x = cosf(angle)*radius;
 	const float y = sinf(angle)*radius;
@@ -143,11 +208,10 @@ void display() {
 
 int main(int argc, char ** argv) {
 
-	sphere.setRadius(1.f);
-
 	Canvas c(640, 480);
-	cam.init(c.width, c.height);
-	gCanvas = &c;
+	scene.cam.init(c.width, c.height);
+	scene.c = &c;
+	initBuckets(c, scene.buckets);
 
 
 	glutInit(&argc, argv);                 // Initialize GLUT

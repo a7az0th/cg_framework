@@ -4,7 +4,7 @@
 
 struct Sphere {
 public:
-	Sphere() { O = Vector(0, 0, 0); }
+	Sphere() : O(Vector(0, 0, 0)), radius(1.f) {}
 	int intersect(const Ray& ray, IntersectionInfo& info) const;
 	void setRadius(float r) { radius = r; }
 	void setPos(const Vector& newPos) { O = newPos;}
