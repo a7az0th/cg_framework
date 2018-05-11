@@ -19,6 +19,7 @@
 #include "color.h"
 #include "camera.h"
 #include "sphere.h"
+#include "defs.h"
 
 #include "threadman.h"
 #include "timer.h"
@@ -34,8 +35,8 @@ struct Rect {
 	Rect(int x0, int y0, int x1, int y1) : x0(x0), x1(x1), y0(y0), y1(y1){}
 	// Clips the rectangle against image size
 	void clip(int maxX, int maxY) {
-		x1 = min(x1, maxX);
-		y1 = min(y1, maxY);
+		x1 = Min(x1, maxX);
+		y1 = Min(y1, maxY);
 	}
 };
 
@@ -105,7 +106,7 @@ Color lambert(const Color &c, IntersectionInfo& info) {
 
 	Color lambertComponent = Color(0.0f, 0.0f, 0.0f);
 	const float cosTheta  = dot(lightVec, info.normal);
-	const Color lightContribution = c * lightColor * max(0, cosTheta) / (from - to).lengthSqr();
+	const Color lightContribution = c * lightColor * Max(0, cosTheta) / (from - to).lengthSqr();
 	lambertComponent += lightContribution / numSamples;
 	lambertComponent = lambertComponent / numLights;
 
@@ -114,7 +115,7 @@ Color lambert(const Color &c, IntersectionInfo& info) {
 	if (phong) {
 		const Vector reflect = getReflectionDir(lightVec, info.normal);
 		const Vector viewDir = (info.intersectionPoint - scene.cam.getPos()).normalize();
-		const float factor = max(0.f, dot(reflect, viewDir));
+		const float factor = Max(0.f, dot(reflect, viewDir));
 
 		specularComponent = lightColor * pow(factor, 30);
 	}
@@ -208,7 +209,13 @@ void display() {
 
 int main(int argc, char ** argv) {
 
-	Canvas c(640, 480);
+	int width = 640;
+	int height = 480;
+	if (argc == 3) {
+		width  = std::stoi(argv[1]);
+		height = std::stoi(argv[2]);
+	}
+	Canvas c(width, height);
 	scene.cam.init(c.width, c.height);
 	scene.c = &c;
 	initBuckets(c, scene.buckets);

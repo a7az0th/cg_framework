@@ -1,7 +1,7 @@
 #pragma once
 
 #include "defs.h"
-inline float clamp(float val, float minVal, float maxVal) { return min(max(val, minVal), maxVal); }
+inline float clamp(float val, float minVal, float maxVal) { return Min(Max(val, minVal), maxVal); }
 
 struct Color {
 

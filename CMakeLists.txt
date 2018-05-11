@@ -30,6 +30,7 @@ include_directories(
 link_libraries(
 	${OPENGL_LIBRARIES}
 	${GLUT_LIBRARIES}
+	pthread
 )
 
 set (THREADMAN_HEADERS

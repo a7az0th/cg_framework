@@ -18,8 +18,8 @@
 #define BLACK       Color(0.0f, 0.0f, 0.0f)
 
 // MACROS
-#define max(a,b) (((a) > (b))? (a) : (b))
-#define min(a,b) (((a) < (b))? (a) : (b))
+#define Max(a,b) (((a) > (b))? (a) : (b))
+#define Min(a,b) (((a) < (b))? (a) : (b))
 
 //TYPEDEFS
 typedef unsigned char       uint8;
