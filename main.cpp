@@ -109,8 +109,8 @@ Color lambert(const Color &c, IntersectionInfo& info) {
 	Color lambertComponent = Color(0.0f, 0.0f, 0.0f);
 	const float cosTheta  = dot(lightVec, info.normal);
 	const Color lightContribution = c * lightColor * Max(0, cosTheta) / (from - to).lengthSqr();
-	lambertComponent += lightContribution / numSamples;
-	lambertComponent = lambertComponent / numLights;
+	lambertComponent += lightContribution / float(numSamples);
+	lambertComponent = lambertComponent / float(numLights);
 
 	Color specularComponent(0,0,0);
 	const bool phong = 1;
@@ -177,7 +177,7 @@ private:
 
 void raytrace(Scene& scene) {
 	MultiThreadedRender renderer(scene.buckets, *scene.c);
-	renderer.run(scene.threadman, scene.buckets.size(), scene.numThreads);
+	renderer.run(scene.threadman, int(scene.buckets.size()), scene.numThreads);
 };
 
 void display() {
@@ -185,7 +185,7 @@ void display() {
 	a7az0th::Timer t;
 	raytrace(scene);
 	t.stop();
-	printf("Frame rendered in %f seconds\r", t.elapsed(a7az0th::Timer::Milliseconds)*0.001f);
+	printf("Frame rendered in %.3f milliseconds\r", t.elapsed(a7az0th::Timer::Nanoseconds)/1000000.f);
 	glDrawPixels(scene.c->width, scene.c->height, GL_RGB, GL_FLOAT ,(float*)scene.c->buffer);
 	glutSwapBuffers();
 
