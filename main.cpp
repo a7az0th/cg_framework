@@ -1,6 +1,7 @@
 #include <stdio.h>
 
 #ifdef __APPLE__
+	#define GL_SILENCE_DEPRECATION
 	#include <OpenGL/gl.h>
 	#include <GLUT/glut.h>
 #else
@@ -25,6 +26,7 @@
 #include "timer.h"
 
 #include <vector>
+#include <string>
 
 // Simple structure used to represent a rectangular section of an image. A 'bucket'
 struct Rect {
@@ -183,18 +185,18 @@ void display() {
 	a7az0th::Timer t;
 	raytrace(scene);
 	t.stop();
-	printf("Frame rendered in %f seconds\r", t.elapsedSeconds());
+	printf("Frame rendered in %f seconds\r", t.elapsed(a7az0th::Timer::Milliseconds)*0.001f);
 	glDrawPixels(scene.c->width, scene.c->height, GL_RGB, GL_FLOAT ,(float*)scene.c->buffer);
 	glutSwapBuffers();
 
 	static float angle = 0.f;
-	const float radius = 5;
+	const float radius = 5.f;
 	const float x = cosf(angle)*radius;
 	const float y = sinf(angle)*radius;
 
-	angle += pi() / 80;
-	if (angle > pi()*2) {
-		angle = 0;
+	angle += pi() / 80.f;
+	if (angle > pi()*2.f) {
+		angle -= pi()*2.f;
 	}
 
 	Vector v(x, y, -5);
@@ -209,8 +211,9 @@ void display() {
 
 int main(int argc, char ** argv) {
 
-	int width = 640;
-	int height = 480;
+	const int div = 4;
+	int width = 640 / div;
+	int height = 480 / div;
 	if (argc == 3) {
 		width  = std::stoi(argv[1]);
 		height = std::stoi(argv[2]);

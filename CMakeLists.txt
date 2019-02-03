@@ -10,7 +10,7 @@ if (WIN32)
 endif()
 
 
-if (${THREADMAN_ROOT_PATH} STREQUAL "")
+if ("${THREADMAN_ROOT_PATH}" STREQUAL "")
 	message(FATAL_ERROR "THREADMAN_ROOT_PATH is not set, but is required.")
 else()
 	message(STATUS "THREADMAN_ROOT_PATH: " ${THREADMAN_ROOT_PATH})
